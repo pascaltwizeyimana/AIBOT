@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+pytest-cache-files-*/
+.coverage
+htmlcov/
+*.egg-info/
+.venv/
+venv/
+.pre-commit-cache/
+
+# Environment and secrets
+.env
+*.pem
+*.key
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# Runtime data and editor files
+data/*.csv
+data/*.parquet
+data/*.sqlite*
+.vscode/
+.idea/
