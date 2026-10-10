@@ -31,6 +31,24 @@ Before a change is accepted, it must pass tests, linting, and formatting. The Gi
 
 `TRADING_MODE` defaults to `demo`. Configuration cannot turn on live trading. A later explicit, audited activation workflow will be required before any live capability is added.
 
+### Bounded MT5 demo automation
+
+The Execution page includes a one-click demo order and an opt-in demo automation
+runner. Both require
+`DEMO_EXECUTION_ENABLED=true`, an already connected MT5 **demo** account, and
+`trade_allowed=true` from the terminal. It checks completed M15/H1/H4 candles,
+uses broker-aware risk sizing, refuses sizes below the broker minimum, and will
+not add an order while a position or pending order for that symbol exists. Each
+one-click action submits at most one order. The runner accepts up to five
+comma-separated broker symbols and is limited to 10 total checks, a selected
+1-3 successful-order cap, a 30-second minimum interval, and 0.25% maximum risk
+per order. Use Stop to end the runner; an order already submitted is not
+automatically closed. Enable algorithmic trading in MT5 and confirm the broker
+permits trading on the demo account; the application does not change terminal
+permissions. This is a demo forward-testing tool, not historical backtesting or
+a validated profitable strategy. Live accounts are rejected at both the route
+and MT5 order-submission boundary.
+
 ## MT5 Phase 3 diagnostic
 
 The terminal adapter performs only `initialize`, `version`, `last_error`, and `shutdown`. It does not call `login`, access account data, receive market data, or execute orders.

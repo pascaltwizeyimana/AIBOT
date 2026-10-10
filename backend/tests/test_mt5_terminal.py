@@ -9,6 +9,9 @@ class FakeMt5(ModuleType):
         self.initialize_result = initialize_result
         self.initialize_options: dict[str, int | str] | None = None
         self.shutdown_calls = 0
+        self.order_send_calls = 0
+        self.account_trade_mode = 0
+        self.account_trade_allowed = True
 
     def initialize(self, **options: int | str) -> bool:
         self.initialize_options = options
@@ -26,15 +29,19 @@ class FakeMt5(ModuleType):
     def account_info(self) -> SimpleNamespace:
         return SimpleNamespace(
             login=12345678,
-            trade_mode=0,
+            trade_mode=self.account_trade_mode,
             currency="USD",
             balance=100.0,
             equity=99.5,
             margin=10.0,
             margin_free=89.5,
             margin_level=995.0,
-            trade_allowed=True,
+            trade_allowed=self.account_trade_allowed,
         )
+
+    def order_send(self, _: dict[str, object]) -> SimpleNamespace:
+        self.order_send_calls += 1
+        return SimpleNamespace(retcode=10009, order=123)
 
 
 def test_probe_initializes_without_credentials_and_closes_connection() -> None:
@@ -128,3 +135,42 @@ def test_account_snapshot_surfaces_mt5_error_and_closes_connection() -> None:
     assert snapshot.error_code == -10003
     assert snapshot.error_message == "IPC initialization failed"
     assert fake_mt5.shutdown_calls == 1
+
+
+def test_demo_order_guard_rejects_real_account_before_order_submission() -> None:
+    fake_mt5 = FakeMt5()
+    fake_mt5.account_trade_mode = 2
+    adapter = Mt5TerminalAdapter(None, 10_000, module_loader=lambda _: fake_mt5)
+
+    result = adapter.send_market_order(
+        "EURUSD",
+        "buy",
+        0.01,
+        1.0,
+        1.1,
+        required_trade_mode="demo",
+    )
+
+    assert result.submitted is False
+    assert result.error_message == "Order requires an MT5 demo account."
+    assert fake_mt5.order_send_calls == 0
+    assert fake_mt5.shutdown_calls == 1
+
+
+def test_order_guard_rejects_disabled_mt5_trading_before_submission() -> None:
+    fake_mt5 = FakeMt5()
+    fake_mt5.account_trade_allowed = False
+    adapter = Mt5TerminalAdapter(None, 10_000, module_loader=lambda _: fake_mt5)
+
+    result = adapter.send_market_order(
+        "EURUSD",
+        "buy",
+        0.01,
+        1.0,
+        1.1,
+        required_trade_mode="demo",
+    )
+
+    assert result.submitted is False
+    assert result.error_message == "MT5 account does not allow trading."
+    assert fake_mt5.order_send_calls == 0

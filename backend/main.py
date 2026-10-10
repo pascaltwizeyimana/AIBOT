@@ -4,6 +4,7 @@ Trading adapters are deliberately absent until their dedicated implementation ph
 """
 
 import logging
+import subprocess
 from contextlib import asynccontextmanager
 from uuid import uuid4
 
@@ -11,6 +12,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.cors import CORSMiddleware
 from starlette.responses import Response
 
 from backend.api.router import api_router
@@ -32,6 +34,12 @@ class RequestIdMiddleware(BaseHTTPMiddleware):
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     settings = get_settings()
+    if settings.auto_start_mt5 and settings.mt5_terminal_path:
+        subprocess.Popen(
+            [settings.mt5_terminal_path],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
     configure_logging(settings.log_level)
     logging.getLogger(__name__).info(
         "application_started environment=%s trading_mode=%s live_trading_enabled=%s",
@@ -51,6 +59,13 @@ app = FastAPI(
     lifespan=lifespan,
 )
 app.add_middleware(RequestIdMiddleware)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=list(settings.cors_origins),
+    allow_credentials=False,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type", "X-Request-ID"],
+)
 app.add_exception_handler(HTTPException, http_exception_handler)
 app.add_exception_handler(StarletteHTTPException, http_exception_handler)
 app.add_exception_handler(RequestValidationError, validation_exception_handler)

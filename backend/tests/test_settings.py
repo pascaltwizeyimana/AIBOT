@@ -16,5 +16,10 @@ def test_settings_default_to_demo_mode() -> None:
     [{"trading_mode": "live"}, {"live_trading_enabled": True}],
 )
 def test_settings_reject_live_trading_configuration(values: dict[str, object]) -> None:
-    with pytest.raises(ValidationError, match="Live trading cannot be enabled"):
+    with pytest.raises(ValidationError, match="Trading execution cannot be enabled"):
         Settings(**values)
+
+
+def test_settings_reject_execution_configuration() -> None:
+    with pytest.raises(ValidationError, match="Trading execution cannot be enabled"):
+        Settings(trading_execution_enabled=True)
